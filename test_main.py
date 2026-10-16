@@ -1,6 +1,7 @@
 import pytest
 import main
 from fastapi.testclient import TestClient
+from concurrent.futures import ThreadPoolExecutor
 client = TestClient(main.app)
 @pytest.fixture(autouse=True)
 def reset_students():
@@ -147,6 +148,7 @@ def test_student_can_keep_own_email_during_update():
         "/students/",
         json=payload(email="badri@example.com"),
     )
+    assert created.status_code == 201
     student_id = created.json()["id"]
     response = client.put(
         f"/students/{student_id}",
@@ -156,6 +158,8 @@ def test_student_can_keep_own_email_during_update():
         ),
     )
     assert response.status_code == 200
+    assert response.json()["id"] == student_id
+    assert response.json()["name"] == "Updated Student"
     assert response.json()["email"] == "badri@example.com"
 
 
@@ -200,3 +204,21 @@ def test_deleted_student_email_can_be_reused():
     assert recreated.status_code == 201
     assert recreated.json()["email"] == "reusable@example.com"
 
+
+def test_concurrent_requests_allow_only_one_duplicate_email():
+    def create_student_request():
+        with TestClient(main.app) as thread_client:
+            response = thread_client.post(
+                "/students/",
+                json=payload(email="concurrent@example.com"),
+            )
+            return response.status_code
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        statuses = list(
+            executor.map(
+                lambda _: create_student_request(),
+                range(8),
+            )
+        )
+    assert statuses.count(201) == 1
+    assert statuses.count(409) == 7
