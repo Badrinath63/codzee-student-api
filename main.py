@@ -1,18 +1,18 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 app = FastAPI(title="Student Management API")
 students = {}
 next_id = 1
 class StudentCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=2, max_length=100)
     email: EmailStr
-    age: int
+    age: int = Field(ge=1, le=120)
 
 
 class StudentUpdate(BaseModel):
-    name: str
+    name: str = Field(min_length=2, max_length=100)
     email: EmailStr
-    age: int
+    age: int = Field(ge=1, le=120)
 
 
 @app.get("/")
