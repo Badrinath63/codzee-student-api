@@ -1,18 +1,29 @@
+from typing import Annotated
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
 app = FastAPI(title="Student Management API")
 students = {}
 next_id = 1
+StudentName = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=2,
+        max_length=100,
+    ),
+]
+
+
 class StudentCreate(BaseModel):
-    name: str
+    name: StudentName
     email: EmailStr
-    age: int
+    age: int = Field(ge=1, le=120)
 
 
 class StudentUpdate(BaseModel):
-    name: str
+    name: StudentName
     email: EmailStr
-    age: int
+    age: int = Field(ge=1, le=120)
 
 
 @app.get("/")
