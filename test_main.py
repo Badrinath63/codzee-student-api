@@ -122,6 +122,7 @@ def test_update_rejects_another_students_email():
         "/students/",
         json=payload(email="first@example.com"),
     )
+    assert first.status_code == 201
     second = client.post(
         "/students/",
         json=payload(
@@ -129,12 +130,16 @@ def test_update_rejects_another_students_email():
             email="second@example.com",
         ),
     )
+    assert second.status_code == 201
     second_id = second.json()["id"]
     response = client.put(
         f"/students/{second_id}",
         json=payload(email="first@example.com"),
     )
     assert response.status_code == 409
+    unchanged = client.get(f"/students/{second_id}")
+    assert unchanged.status_code == 200
+    assert unchanged.json()["email"] == "second@example.com"
 
 
 def test_student_can_keep_own_email_during_update():
@@ -152,3 +157,46 @@ def test_student_can_keep_own_email_during_update():
     )
     assert response.status_code == 200
     assert response.json()["email"] == "badri@example.com"
+
+
+def test_update_rejects_case_insensitive_duplicate_email():
+    first = client.post(
+        "/students/",
+        json=payload(email="first@example.com"),
+    )
+    assert first.status_code == 201
+    second = client.post(
+        "/students/",
+        json=payload(
+            name="Second Student",
+            email="second@example.com",
+        ),
+    )
+    assert second.status_code == 201
+    second_id = second.json()["id"]
+    response = client.put(
+        f"/students/{second_id}",
+        json=payload(email="FIRST@example.com"),
+    )
+    assert response.status_code == 409
+
+
+def test_deleted_student_email_can_be_reused():
+    created = client.post(
+        "/students/",
+        json=payload(email="reusable@example.com"),
+    )
+    assert created.status_code == 201
+    student_id = created.json()["id"]
+    deleted = client.delete(f"/students/{student_id}")
+    assert deleted.status_code == 200
+    recreated = client.post(
+        "/students/",
+        json=payload(
+            name="New Student",
+            email="reusable@example.com",
+        ),
+    )
+    assert recreated.status_code == 201
+    assert recreated.json()["email"] == "reusable@example.com"
+
