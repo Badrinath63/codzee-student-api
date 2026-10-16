@@ -1,11 +1,7 @@
 import pytest
 import main
-
 from fastapi.testclient import TestClient
-
 client = TestClient(main.app)
-
-
 @pytest.fixture(autouse=True)
 def reset_students():
     main.students.clear()
@@ -82,7 +78,6 @@ def test_age_boundary_values_are_accepted():
 def test_update_rejects_blank_name():
     created = client.post("/students/", json=payload())
     student_id = created.json()["id"]
-
     response = client.put(
         f"/students/{student_id}",
         json=payload(name="   "),
@@ -90,3 +85,70 @@ def test_update_rejects_blank_name():
     assert response.status_code == 422
 
 
+def test_duplicate_email_is_rejected():
+    first = client.post(
+        "/students/",
+        json=payload(email="badri@example.com"),
+    )
+    assert first.status_code == 201
+    second = client.post(
+        "/students/",
+        json=payload(
+            name="Another Student",
+            email="badri@example.com",
+        ),
+    )
+    assert second.status_code == 409
+
+
+def test_duplicate_email_is_rejected_case_insensitively():
+    first = client.post(
+        "/students/",
+        json=payload(email="badri@example.com"),
+    )
+    assert first.status_code == 201
+    second = client.post(
+        "/students/",
+        json=payload(
+            name="Another Student",
+            email="BADRI@example.com",
+        ),
+    )
+    assert second.status_code == 409
+
+
+def test_update_rejects_another_students_email():
+    first = client.post(
+        "/students/",
+        json=payload(email="first@example.com"),
+    )
+    second = client.post(
+        "/students/",
+        json=payload(
+            name="Second Student",
+            email="second@example.com",
+        ),
+    )
+    second_id = second.json()["id"]
+    response = client.put(
+        f"/students/{second_id}",
+        json=payload(email="first@example.com"),
+    )
+    assert response.status_code == 409
+
+
+def test_student_can_keep_own_email_during_update():
+    created = client.post(
+        "/students/",
+        json=payload(email="badri@example.com"),
+    )
+    student_id = created.json()["id"]
+    response = client.put(
+        f"/students/{student_id}",
+        json=payload(
+            name="Updated Student",
+            email="badri@example.com",
+        ),
+    )
+    assert response.status_code == 200
+    assert response.json()["email"] == "badri@example.com"

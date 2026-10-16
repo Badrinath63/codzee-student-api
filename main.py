@@ -34,10 +34,16 @@ def home():
 @app.post("/students/", status_code=201)
 def create_student(student: StudentCreate):
     global next_id
+    for existing_student in students.values():
+        if existing_student["email"].lower() == str(student.email).lower():
+            raise HTTPException(
+                status_code=409,
+                detail="A student with this email already exists",
+            )
     student_data = {
         "id": next_id,
         "name": student.name,
-        "email": student.email,
+        "email": str(student.email),
         "age": student.age,
     }
     students[next_id] = student_data
@@ -61,8 +67,22 @@ def get_student(student_id: int):
 @app.put("/students/{student_id}")
 def update_student(student_id: int, data: StudentUpdate):
     if student_id not in students:
-        raise HTTPException(status_code=404, detail="Student not found")
-    students[student_id].update(data.model_dump())
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+    for existing_id, existing_student in students.items():
+        if (
+            existing_id != student_id
+            and existing_student["email"].lower() == str(data.email).lower()
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="A student with this email already exists",
+            )
+    updated_data = data.model_dump()
+    updated_data["email"] = str(data.email)
+    students[student_id].update(updated_data)
     return students[student_id]
 
 
