@@ -222,3 +222,28 @@ def test_concurrent_requests_allow_only_one_duplicate_email():
         )
     assert statuses.count(201) == 1
     assert statuses.count(409) == 7
+
+
+def test_get_nonexistent_student_returns_404():
+    response = client.get("/students/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Student not found"
+
+
+def test_update_nonexistent_student_returns_404():
+    response = client.put(
+        "/students/999",
+        json=payload(),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Student not found"
+
+
+def test_delete_nonexistent_student_returns_404():
+    response = client.delete("/students/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Student not found"
+
